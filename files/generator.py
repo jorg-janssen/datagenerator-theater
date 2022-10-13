@@ -20,7 +20,7 @@ def __main__():
     file = open("inserts.sql", "w")
     file.write("SET NOCOUNT ON\ngo\n")    
     
-    # maak moederbedrijven en holdings
+    # maak holdings, moederbedrijven en gewone bedrijven
     bedrijven = []
     holdings = random.sample(bron_bedrijven, k = random.randrange(5,10)) 
     for bedrijf in holdings:
@@ -46,10 +46,10 @@ def __main__():
         land = random.choice(licentielanden)
         bedrijf["LANDNAAM"] = land["landnaam"] 
     
-    # koppel schip aan willekeurig bedrijf (geen holding)
+    # koppel schip aan willekeurig bedrijf (ook aan moederbedrijven maar niet aan holdings)
     for schip in schepen:        
         bedrijf = random.choice(bedrijven)
-        while (bedrijf["EIGENAAR"] == None ):
+        while (bedrijf["EIGENAAR"] == None ): # holding?
             bedrijf = random.choice(bedrijven)        
         schip["BEDRIJFSNAAM"] = bedrijf["BEDRIJFSNAAM"]
     
@@ -58,7 +58,7 @@ def __main__():
     print ("BEDRIJF: ", py2sql.list2sql2file('BEDRIJF', bedrijven, file))    
     print ("SCHIP: ", py2sql.list2sql2file('SCHIP', schepen, file)) 
     
-    # voorbereiden random factoren
+    # plaats random factoren
     for land in vangstlanden:
         land["factor"] = 1 + random.random()*2
     for land in licentielanden:
@@ -83,11 +83,12 @@ def genereer_vangsten(file):
 
         for datum in random.sample(datums, k = random.randrange(0, 50)): # een aantal vistochten per jaar
         
+            # minder vangst in winter en meer in zomer = maandfactor
             maandfactor = datum.month-7
             if maandfactor >= 0:
                 maandfactor += 1
             maandfactor = abs(maandfactor)*5
-            jaarfactor = 1+(datum.year-2015)/10
+            jaarfactor = 1+(datum.year-2015)/10 # ieder jaar een beetje meer
  
             for land in random.sample(vangstlanden, k = random.randrange(1,3)): # een paar landen per vistocht
             
@@ -118,7 +119,7 @@ def genereer_vislicenties(file):
           
                 for vis in random.sample(vissoorten, k = random.randrange(10,20)):  # een aantal vissoorten                 
           
-                    begindatum = datetime.date(2016, 1, 1) - datetime.timedelta(days=random.randrange(0,3000))
+                    begindatum = datetime.date(2016, 1, 1) - datetime.timedelta(days=random.randrange(0,3000)) # een paar wisselingen
                     einddatum = datetime.date(2016, 1, 1)
                     
                     while einddatum < datetime.date(2021, 12, 31):  
@@ -132,14 +133,13 @@ def genereer_vislicenties(file):
                         licentie["L_VANAF"] = begindatum.strftime('%Y-%m-%d')                        
                         licentie["VISSOORT_LICENTIE"] = vis["vissoortnaam"]                         
 
-                        if einddatum >= datetime.date(2021, 12, 31):
+                        if einddatum >= datetime.date(2021, 12, 31): # data tot 2021-12-31
                             licentie["L_TM"] = None
                         else:
-                            licentie["L_TM"] = einddatum.strftime('%Y-%m-%d')
+                            licentie["L_TM"] = einddatum.strftime('%Y-%m-%d') # en anders een nieuwe periode starten de dag erna
                             begindatum = einddatum + datetime.timedelta(days=1)
                             
-                        licentie["QUOTUM"] = int(random.randrange(50,500)*schip["factor"]*land["factor"]*vis["factor"])                            
-
+                        licentie["QUOTUM"] = int(random.randrange(50,500)*schip["factor"]*land["factor"]*vis["factor"]) 
                         
                         vislicenties.append(licentie)
                         
@@ -151,7 +151,7 @@ def genereer_scheepsvlaggen(file):
 
     for schip in schepen:
 
-        begindatum = datetime.date(2016, 1, 1) - datetime.timedelta(days=random.randrange(0,3000))
+        begindatum = datetime.date(2016, 1, 1) - datetime.timedelta(days=random.randrange(0,3000)) # een paar wisselingen
         einddatum = datetime.date(2016, 1, 1)
         
         while einddatum < datetime.date(2021, 12, 31):  
@@ -164,10 +164,10 @@ def genereer_scheepsvlaggen(file):
             vlag["LANDNAAM"] = land["landnaam"]    
             vlag["VLAG_VANAF"] = begindatum.strftime('%Y-%m-%d')       
 
-            if einddatum >= datetime.date(2021, 12, 31):
+            if einddatum >= datetime.date(2021, 12, 31): # data tot 2021-12-31
                 vlag["VLAG_TM"] = None
             else:
-                vlag["VLAG_TM"] = einddatum.strftime('%Y-%m-%d')
+                vlag["VLAG_TM"] = einddatum.strftime('%Y-%m-%d')  # en anders een nieuwe periode starten de dag erna
                 begindatum = einddatum + datetime.timedelta(days=1)
             
             scheepsvlaggen.append(vlag)
