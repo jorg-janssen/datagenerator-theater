@@ -25,21 +25,21 @@ def __main__():
     holdings = random.sample(bron_bedrijven, k = random.randrange(5,10)) # maak 5 tot 10 holdings
     for bedrijf in holdings:
         mydict = {}
-        mydict["BEDRIJFSNAAM"] = bedrijf
+        mydict["BEDRIJFSNAAM"] = bedrijf["bedrijfsnaam"]
         mydict["EIGENAAR"] = None
         bedrijven.append(mydict)
     moederbedrijven = random.sample(bron_bedrijven, k = random.randrange(10,20)) # maak 10 tot 20 moederbedrijven      
     for bedrijf in moederbedrijven:
         if bedrijf not in holdings:
             mydict = {}
-            mydict["BEDRIJFSNAAM"] = bedrijf
-            mydict["EIGENAAR"] = random.choice(holdings)
+            mydict["BEDRIJFSNAAM"] = bedrijf["bedrijfsnaam"]
+            mydict["EIGENAAR"] = random.choice(holdings)["bedrijfsnaam"]
             bedrijven.append(mydict)
     for bedrijf in bron_bedrijven:                       # vul de rest van de bedrijven aan
         if bedrijf not in holdings and bedrijf not in moederbedrijven:
             mydict = {}
-            mydict["BEDRIJFSNAAM"] = bedrijf
-            mydict["EIGENAAR"] = random.choice(moederbedrijven)
+            mydict["BEDRIJFSNAAM"] = bedrijf["bedrijfsnaam"]
+            mydict["EIGENAAR"] = random.choice(moederbedrijven)["bedrijfsnaam"]
             bedrijven.append(mydict)
     # koppel landen aan bedrijven
     for bedrijf in bedrijven:
