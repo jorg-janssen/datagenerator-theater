@@ -4,7 +4,7 @@ import random
 import datetime
 import py2sql
 
-AANTAL_BEDRIJVEN = 30   # minimaal 10
+AANTAL_BEDRIJVEN = 40   # minimaal 10
 AANTAL_SCHEPEN = 60      # minimaal 3
 AANTAL_VISSOORTEN = 20  # minimaal 10
 AANTAL_LANDEN = 8       # minmiaal 6
@@ -117,7 +117,7 @@ def genereer_vangsten(file, schepen, landen, vissoorten):
                     vangst["LANDNAAM"] = land["LANDNAAM"]
                     vangst["DATUM"] = datum.strftime('%Y-%m-%d')
                     vangst["VISSOORT_GEVANGEN"] = vis["VISSOORTNAAM"]
-                    vangst["HOEVEELHEID"] = str(hoeveelheid)
+                    vangst["HOEVEELHEID"] = hoeveelheid
                     
                     vangsten.append(vangst)   
                     
