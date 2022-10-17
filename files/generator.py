@@ -4,10 +4,16 @@ import random
 import datetime
 import py2sql
 
-vangstlanden = json.load(open('datafiles/vangstlanden.json', 'r'))
-licentielanden = json.load(open('datafiles/licentielanden.json', 'r'))
+AANTAL_BEDRIJVEN = 10   # minimaal 10
+AANTAL_SCHEPEN = 3      # minimaal 3
+AANTAL_VISSOORTEN = 10  # minimaal 10
+AANTAL_LANDEN = 6       # minmiaal 6
+AANTAL_VISTOCHTEN = 5   # minimaal 5
+
+#vangstlanden = json.load(open('datafiles/vangstlanden.json', 'r'))
+bron_landen = json.load(open('datafiles/licentielanden.json', 'r'))
 bron_bedrijven = json.load(open('datafiles/bedrijven.json', 'r'))
-schepen = json.load(open('datafiles/schepen.json', 'r'))
+bron_schepen = json.load(open('datafiles/schepen.json', 'r'))
 vissoorten = json.load(open('datafiles/vissoorten.json', 'r'))
 
 datums = [datetime.date(2016, 1, 1)]
@@ -18,35 +24,43 @@ while datums[-1] != datetime.date(2021, 12, 31):
 def __main__():
 
     file = open("inserts.sql", "w")
-    file.write("SET NOCOUNT ON\ngo\n")    
-    
+    file.write("SET NOCOUNT ON\ngo\n")   
+
+    # maak landen
+    landen = random.sample(bron_landen, k = AANTAL_LANDEN)
+
     # maak holdings, moederbedrijven en gewone bedrijven
     bedrijven = []
-    holdings = random.sample(bron_bedrijven, k = random.randrange(5,10)) # maak 5 tot 10 holdings
+    holdings = random.sample(bron_bedrijven, k = int(AANTAL_BEDRIJVEN/10)) # maak 10% holdings
     for bedrijf in holdings:
         mydict = {}
         mydict["BEDRIJFSNAAM"] = bedrijf["bedrijfsnaam"]
         mydict["EIGENAAR"] = None
         bedrijven.append(mydict)
-    moederbedrijven = random.sample(bron_bedrijven, k = random.randrange(10,20)) # maak 10 tot 20 moederbedrijven      
+    moederbedrijven = random.sample(bron_bedrijven, k = int(AANTAL_BEDRIJVEN/5)) # maak 20% moederbedrijven 
     for bedrijf in moederbedrijven:
         if bedrijf not in holdings:
             mydict = {}
             mydict["BEDRIJFSNAAM"] = bedrijf["bedrijfsnaam"]
             mydict["EIGENAAR"] = random.choice(holdings)["bedrijfsnaam"]
             bedrijven.append(mydict)
-    for bedrijf in bron_bedrijven:                       # vul de rest van de bedrijven aan
-        if bedrijf not in holdings and bedrijf not in moederbedrijven:
+    aantalbedrijven = 0                      # vul de rest van de bedrijven aan
+    while aantalbedrijven < AANTAL_BEDRIJVEN:
+        bedrijf = random.choice(bron_bedrijven)
+        if(bedrijf not in holdings and bedrijf not in moederbedrijven):
             mydict = {}
             mydict["BEDRIJFSNAAM"] = bedrijf["bedrijfsnaam"]
             mydict["EIGENAAR"] = random.choice(moederbedrijven)["bedrijfsnaam"]
             bedrijven.append(mydict)
+            aantalbedrijven += 1
+
     # koppel landen aan bedrijven
     for bedrijf in bedrijven:
-        land = random.choice(licentielanden)
+        land = random.choice(landen)
         bedrijf["LANDNAAM"] = land["landnaam"] 
     
     # koppel schip aan willekeurig bedrijf (ook aan moederbedrijven maar niet aan holdings)
+    schepen = random.sample(bron_schepen, k = AANTAL_SCHEPEN)
     for schip in schepen:        
         bedrijf = random.choice(bedrijven)
         while (bedrijf["EIGENAAR"] == None ): # holding?
@@ -54,14 +68,14 @@ def __main__():
         schip["BEDRIJFSNAAM"] = bedrijf["BEDRIJFSNAAM"]
     
     # genereer inserts basistabellen
-    print ("LAND: ", py2sql.list2sql2file('LAND', licentielanden, file))    
+    print ("LAND: ", py2sql.list2sql2file('LAND', landen, file))    
     print ("BEDRIJF: ", py2sql.list2sql2file('BEDRIJF', bedrijven, file))    
     print ("SCHIP: ", py2sql.list2sql2file('SCHIP', schepen, file)) 
     
     # plaats random factoren
-    for land in vangstlanden:
+    for land in landen:
         land["factor"] = 1 + random.random()*2
-    for land in licentielanden:
+    for land in landen:
         land["factor"] = 1 + random.random() *2       
     for vissoort in vissoorten:
         vissoort["factor"] = 1 + random.random()*3
@@ -69,19 +83,19 @@ def __main__():
         schip["factor"] = 1 + random.random()*5  
         
     # genereer inserts overige tabellen
-    genereer_scheepsvlaggen(file)
-    genereer_vangsten(file) 
-    genereer_vislicenties(file)
+    genereer_scheepsvlaggen(file, schepen, landen)
+    genereer_vangsten(file, schepen, landen) 
+    genereer_vislicenties(file, schepen, landen)
 
     file.close()     
     
-def genereer_vangsten(file):
+def genereer_vangsten(file, schepen, landen):
     
     vangsten = []
 
-    for schip in random.sample(schepen, k = random.randrange(len(schepen)-6,len(schepen)-4)):  # bijna alle schepen
+    for schip in random.sample(schepen, k = random.randrange(len(schepen)-3,len(schepen)-1)):  # bijna alle schepen
 
-        for datum in random.sample(datums, k = random.randrange(0, 50)): # een aantal vistochten per jaar
+        for datum in random.sample(datums, k = AANTAL_VISTOCHTEN): # een aantal vistochten 
         
             # minder vangst in winter en meer in zomer = maandfactor
             maandfactor = datum.month-7
@@ -90,9 +104,9 @@ def genereer_vangsten(file):
             maandfactor = abs(maandfactor)*5
             jaarfactor = 1+(datum.year-2015)/10 # ieder jaar een beetje meer
  
-            for land in random.sample(vangstlanden, k = random.randrange(1,3)): # een paar landen per vistocht
+            for land in random.sample(landen, k = random.randrange(1,3)): # een paar landen per vistocht
             
-                for vis in random.sample(vissoorten, k = random.randrange(1,10)): # een stuk of 10 vissoorten per vistocht
+                for vis in random.sample(vissoorten, k = int(AANTAL_VISSOORTEN/10)): # 10% van de vissoorten
                 
                     vangst = {}
                  
@@ -109,15 +123,15 @@ def genereer_vangsten(file):
     print ("VANGST: ", py2sql.list2sql2file('VANGST', vangsten, file))       
 
 
-def genereer_vislicenties(file):
+def genereer_vislicenties(file, schepen, landen):
 
     vislicenties = []
 
-    for schip in random.sample(schepen, k = random.randrange(len(schepen)-6,len(schepen)-4)): # bijna alle schepen
+    for schip in random.sample(schepen, k = random.randrange(len(schepen)-3,len(schepen)-1)): # bijna alle schepen
             
-            for land in random.sample(licentielanden, k = random.randrange(5,len(licentielanden)-2)): # veel landen
+            for land in random.sample(landen, k = random.randrange(2,len(landen)-2)): # veel landen
           
-                for vis in random.sample(vissoorten, k = random.randrange(10,20)):  # een aantal vissoorten                 
+                for vis in random.sample(vissoorten, k = int(AANTAL_VISSOORTEN/2)):  # de helft van de vissoorten                 
           
                     begindatum = datetime.date(2016, 1, 1) - datetime.timedelta(days=random.randrange(0,3000)) # een paar wisselingen
                     einddatum = datetime.date(2016, 1, 1)
@@ -145,7 +159,7 @@ def genereer_vislicenties(file):
                         
     print ("VISLICENTIE", py2sql.list2sql2file('VISLICENTIE', vislicenties, file))    
 
-def genereer_scheepsvlaggen(file):
+def genereer_scheepsvlaggen(file, schepen, landen):
 
     scheepsvlaggen = []
 
@@ -155,7 +169,7 @@ def genereer_scheepsvlaggen(file):
         einddatum = datetime.date(2016, 1, 1)
         
         while einddatum < datetime.date(2021, 12, 31):  
-            land = random.choice(licentielanden)
+            land = random.choice(landen)
             einddatum = begindatum + datetime.timedelta(days=random.randrange(300,5000))
             
             vlag = {}
