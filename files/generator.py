@@ -40,7 +40,7 @@ def __main__():
         data.append(new)          
 
     # klanten
-    for klantnr in range(1001, 21000):
+    for klantnr in range(1001, random.randint(19000, 22000)):
         klant = {}
         klant["klantnummer"] = klantnr
         klant["achternaam"] = random.choice(lastnames_bron)
@@ -128,32 +128,44 @@ def maak_uitvoering(voorstelling, uitvoeringsnr, zaal, datum, beginuur, beginmin
     uitvoering["begindatumtijd"] =  uitvoering["begindatumtijd"] + datetime.timedelta(minutes = beginminuut)                            
     uitvoering["einddatumtijd"] = uitvoering["begindatumtijd"]  + datetime.timedelta(minutes = duur)
     uitvoering["zaalnummer"] = zaal["zaalnummer"]
-    # voorbereiden reserveringen en bezetting:
-    print(zaal["zaalnummer"])
-    #rangen
+    # reserveringen en bezetting:
     for rang in rangen:      
         if rang["zaalnummer"] == zaal["zaalnummer"]:
             stoelnr = rang["vanstoel"]
             # reserveringen    
-            while stoelnr <= rang["totstoel"] - 8:
+            while stoelnr <= rang["totstoel"]: 
                 reservering = {}
-                reserveringsnr = reserveringsnr + 1
                 reservering["reserveringsnummer"] = reserveringsnr
                 reservering["klantnummer"] = random.choice(klanten)["klantnummer"]
                 reservering["voorstellingsnummer"] = uitvoering["voorstellingsnummer"]
                 reservering["uitvoeringsnummer"] = uitvoering["uitvoeringsnummer"]
                 reserveringen.append(reservering)
+                reserveringsnr = reserveringsnr + 1              
                 aantal_stoelen = random.randint(1,8) # 1 tot 8 stoeltjes per reservering        
-                # bezetting
+                # bezetting van deze reservering:
                 for b in range(1, aantal_stoelen): 
-                    bezetting = {}
-                    bezetting["reserveringsnummer"] = reservering["reserveringsnummer"]
-                    bezetting["stoelnummer"] = stoelnr
-                    bezetting["voorstellingsnummer"] = reservering["voorstellingsnummer"]
-                    bezetting["uitvoeringsnummer"] = reservering["uitvoeringsnummer"]
-                    bezettingen.append(bezetting)  
-                    stoelnr = stoelnr + 1
-                stoelnr = stoelnr + random.randint(0, abs(populariteitsfactor-11)) # hier en daar wat lege stoeltjes 
+                    if stoelnr < rang["totstoel"]:
+                        bezetting = {}
+                        bezetting["reserveringsnummer"] = reservering["reserveringsnummer"]
+                        bezetting["stoelnummer"] = stoelnr
+                        bezetting["voorstellingsnummer"] = reservering["voorstellingsnummer"]
+                        bezetting["uitvoeringsnummer"] = reservering["uitvoeringsnummer"]
+                        bezettingen.append(bezetting)  
+                        stoelnr = stoelnr + 1
+                # skip een paar lege stoeltjes na deze reservering:
+                stoelnr = stoelnr + random.randint(0, abs(populariteitsfactor-11))   
+                # een paar los verkochte stoeltjes ertussen (zonder reservering):
+                for b in range(0,4): 
+                    if stoelnr < rang["totstoel"]:
+                        bezetting = {}
+                        bezetting["reserveringsnummer"] = None
+                        bezetting["stoelnummer"] = stoelnr
+                        bezetting["voorstellingsnummer"] = reservering["voorstellingsnummer"]
+                        bezetting["uitvoeringsnummer"] = reservering["uitvoeringsnummer"]
+                        bezettingen.append(bezetting)  
+                        stoelnr = stoelnr + 1
+                # een paar lege stoeltjes na deze los verkochte:                     
+                stoelnr = stoelnr + random.randint(0, abs(populariteitsfactor-11)) 
     return uitvoering
     
 def dicts2list(listOfDicts, item):
