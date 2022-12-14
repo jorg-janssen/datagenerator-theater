@@ -17,8 +17,6 @@ voorstellingsnr = 1
 reserveringsnr = 1001   
 
 data = []
-
-
          
 def __main__():
     global voorstellingsnr
@@ -35,15 +33,14 @@ def __main__():
     postcodes_bron = json.load(open('datafiles/postcodes.json', 'r'))
     #adressen = json.load(open('datafiles/adressen.json', 'r'))
     
-    # generate helper lists   
-    
+    # generate helper lists     
     data.append(datetime.date(2018, 1, 1))
     while data[-1] != datetime.date(2022, 12, 31):
         new = data[-1] + datetime.timedelta(days=1)
         data.append(new)          
 
-    #klanten
-    for klantnr in range(1001, 11000):
+    # klanten
+    for klantnr in range(1001, 21000):
         klant = {}
         klant["klantnummer"] = klantnr
         klant["achternaam"] = random.choice(lastnames_bron)
