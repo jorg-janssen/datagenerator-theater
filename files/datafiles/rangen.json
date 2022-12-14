@@ -1,0 +1,10 @@
+[
+ {"zaalnummer":1,"rangnummer":1,"vanstoel":1,"totstoel":50},
+ {"zaalnummer":1,"rangnummer":2,"vanstoel":51,"totstoel":200},
+ {"zaalnummer":2,"rangnummer":1,"vanstoel":1,"totstoel":300},
+ {"zaalnummer":2,"rangnummer":2,"vanstoel":301,"totstoel":1050},
+ {"zaalnummer":2,"rangnummer":3,"vanstoel":1051,"totstoel":1800},
+ {"zaalnummer":3,"rangnummer":1,"vanstoel":1,"totstoel":100},
+ {"zaalnummer":4,"rangnummer":1,"vanstoel":1,"totstoel":100},
+ {"zaalnummer":4,"rangnummer":2,"vanstoel":101,"totstoel":400}
+]

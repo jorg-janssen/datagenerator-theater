@@ -4,191 +4,198 @@ import random
 import datetime
 import py2sql
 
-AANTAL_BEDRIJVEN = 40   # minimaal 10
-AANTAL_SCHEPEN = 60      # minimaal 3
-AANTAL_VISSOORTEN = 20  # minimaal 10
-AANTAL_LANDEN = 8       # minmiaal 6
-AANTAL_VISTOCHTEN = 5   # minimaal 5
+zalen = []
+rangen = []
+klanten = []
+voorstellingen = []
+uitvoeringen = [] 
+reserveringen = []
+bezettingen = []
+prijzen = []
 
-bron_landen = json.load(open('datafiles/landen.json', 'r'))
-bron_bedrijven = json.load(open('datafiles/bedrijven.json', 'r'))
-bron_schepen = json.load(open('datafiles/schepen.json', 'r'))
-bron_vissoorten = json.load(open('datafiles/vissoorten.json', 'r'))
-bron_datums = [datetime.date(2016, 1, 1)]
-while bron_datums[-1] != datetime.date(2021, 12, 31):
-    nieuw = bron_datums[-1] + datetime.timedelta(days=1)
-    bron_datums.append(nieuw)
+voorstellingsnr = 1 
+reserveringsnr = 1001   
+
+data = []
 
 
+         
 def __main__():
+    global voorstellingsnr
+   
+    # import files for some base tables
+    zalen_bron = json.load(open('datafiles/zalen.json', 'r'))
+    rangen.extend(json.load(open('datafiles/rangen.json', 'r')))
+    voorstellingen_bron = json.load(open('datafiles/voorstellingen.json', 'r'))    
+    print(len(voorstellingen_bron))
+    
+    # import helper files
+    firstnames_bron = json.load(open('datafiles/firstnames.json', 'r'))
+    lastnames_bron = json.load(open('datafiles/lastnames.json', 'r'))
+    postcodes_bron = json.load(open('datafiles/postcodes.json', 'r'))
+    #adressen = json.load(open('datafiles/adressen.json', 'r'))
+    
+    # generate helper lists   
+    
+    data.append(datetime.date(2018, 1, 1))
+    while data[-1] != datetime.date(2022, 12, 31):
+        new = data[-1] + datetime.timedelta(days=1)
+        data.append(new)          
 
+    #klanten
+    for klantnr in range(1001, 11000):
+        klant = {}
+        klant["klantnummer"] = klantnr
+        klant["achternaam"] = random.choice(lastnames_bron)
+        klant["voorletter"] = random.choice(firstnames_bron)[0]
+        klant["geslacht"] = random.choice(["M","V", None])
+        postcode_en_city = random.choice(postcodes_bron)
+        klant["postcode"] = postcode_en_city["postcode"]
+        klant["woonplaats"] = postcode_en_city["city"]
+        klanten.append(klant) 
+
+    # per zaal
+    for zaal in zalen_bron:
+        zalen.append(zaal)
+        # voorstellingen
+        dagen_gebruikt = 0
+        while dagen_gebruikt < 4 * 365 and len(voorstellingen_bron) > voorstellingsnr:            
+            voorstelling = voorstellingen_bron[voorstellingsnr]            
+            voorstelling["voorstellingsnummer"] = voorstellingsnr + 100000
+            if "titel" not in voorstelling: 
+                voorstelling["titel"] = "Onbekende titel"
+            if "genre" not in voorstelling:
+                voorstelling["genre"] = None
+            voorstellingen.append(voorstelling)
+            duur = random.choice([45, 60, 90, 120, 135, 150])  
+            datum = data[dagen_gebruikt]
+            datum = datetime.datetime.combine(datum, datetime.datetime.min.time())
+            populariteitsfactor = random.randint(1,10)
+            # prijzen
+            for rang in rangen:
+                if rang["zaalnummer"] == zaal["zaalnummer"]:
+                    prijs = {}
+                    prijs["voorstellingsnummer"] = voorstelling["voorstellingsnummer"]
+                    prijs["zaalnummer"] = zaal["zaalnummer"]
+                    prijs["rangnummer"] = rang["rangnummer"]
+                    prijs["prijs"] = (populariteitsfactor * random.randint(5, 25)) / (rang["rangnummer"] * random.randint(75,125)/100)
+                    prijzen.append(prijs)
+            # uitvoeringen
+            aantal_uitvoeringen = random.randint(1,6)  # 1 tot 6 uitvoeringen per voorstelling
+            uitvoeringsnr = 0
+            while uitvoeringsnr <= aantal_uitvoeringen:
+                uitvoeringsnr = uitvoeringsnr + 1  
+                beginuur = random.randint(19,21)
+                beginminuut = random.choice([0,30])              
+                uitvoering = maak_uitvoering(voorstelling, uitvoeringsnr, zaal, datum, beginuur, beginminuut, duur, populariteitsfactor)
+                uitvoeringen.append(uitvoering)
+                #matinee-uitvoering
+                if random.randint(0,10) < 2:
+                    uitvoeringsnr = uitvoeringsnr + 1    
+                    beginuur = random.randint(14,16)
+                    beginminuut = random.choice([0,30])                                       
+                    uitvoering = maak_uitvoering(voorstelling, uitvoeringsnr, zaal, datum, beginuur, beginminuut, duur, int(populariteitsfactor/random.randint(1,3)))
+                    uitvoeringen.append(uitvoering)
+                dagen_tot_volgende_uitvoering =  random.randint(1,2) # volgende uitvoering een paar dagen later
+                datum = datum + datetime.timedelta(days = dagen_tot_volgende_uitvoering)
+                dagen_gebruikt = dagen_gebruikt + dagen_tot_volgende_uitvoering
+            # naar volgende voorstelling:
+            voorstellingsnr = voorstellingsnr + 1
+            dagen_gebruikt = dagen_gebruikt + random.randint(1,4) # volgende voorstelling een paar dagen later  
+        
+
+    print("Writing file...")
     file = open("inserts.sql", "w")
-    file.write("SET NOCOUNT ON\ngo\n")   
+    file.write("SET NOCOUNT ON\ngo\n")     
 
-    # maak landen
-    landen = tupels2dicts("LANDNAAM",random.sample(bron_landen, k = min(AANTAL_LANDEN, len(bron_landen))))
+    py2sql.list2sql("Zaal", zalen, file)
+    py2sql.list2sql("Rang", rangen, file)
+    py2sql.list2sql("Klant", klanten, file)
+    py2sql.list2sql("Voorstelling", voorstellingen, file)
+    py2sql.list2sql("Uitvoering", uitvoeringen, file) 
+    py2sql.list2sql("Reservering", reserveringen, file)
+    py2sql.list2sql("Bezetting", bezettingen, file)
+    py2sql.list2sql("Prijzen", prijzen, file)    
 
-    # maak vissoorten
-    vissoorten = tupels2dicts("VISSOORTNAAM", random.sample(bron_vissoorten, k = min(AANTAL_VISSOORTEN, len(bron_vissoorten))))
 
-    # maak holdings, moederbedrijven en gewone bedrijven
-    bedrijven = []
-    holdings = random.sample(bron_bedrijven, k = int(AANTAL_BEDRIJVEN/10)) # maak 10% holdings
-    for bedrijf in holdings:
-        mydict = {}
-        mydict["BEDRIJFSNAAM"] = bedrijf
-        mydict["EIGENAAR"] = None
-        bedrijven.append(mydict)
-    moederbedrijven = random.sample(bron_bedrijven, k = int(AANTAL_BEDRIJVEN/5)) # maak 20% moederbedrijven 
-    for bedrijf in moederbedrijven:
-        if bedrijf not in holdings:
-            mydict = {}
-            mydict["BEDRIJFSNAAM"] = bedrijf
-            mydict["EIGENAAR"] = random.choice(holdings)
-            bedrijven.append(mydict)
-    aantalbedrijven = len(holdings) + len(moederbedrijven)                      # vul de rest van de bedrijven aan
-    for bedrijf in bron_bedrijven:
-        if(bedrijf not in holdings and bedrijf not in moederbedrijven):
-            mydict = {}
-            mydict["BEDRIJFSNAAM"] = bedrijf
-            mydict["EIGENAAR"] = random.choice(moederbedrijven)
-            bedrijven.append(mydict)
-            aantalbedrijven += 1
-            if(aantalbedrijven == AANTAL_BEDRIJVEN): break
-    # koppel landen aan bedrijven
-    for bedrijf in bedrijven:
-        land = random.choice(landen)
-        bedrijf["LANDNAAM"] = land["LANDNAAM"] 
+    file.close()
+
+def maak_uitvoering(voorstelling, uitvoeringsnr, zaal, datum, beginuur, beginminuut, duur, populariteitsfactor):
+    global reserveringsnr
+    # avonduitvoering:
+    uitvoering = {}
+    uitvoering["voorstellingsnummer"] = voorstelling["voorstellingsnummer"] 
+    uitvoering["uitvoeringsnummer"] = uitvoeringsnr  
+    uitvoering["begindatumtijd"] = datum
+    uitvoering["begindatumtijd"] =  uitvoering["begindatumtijd"] + datetime.timedelta(hours = beginuur)
+    uitvoering["begindatumtijd"] =  uitvoering["begindatumtijd"] + datetime.timedelta(minutes = beginminuut)                            
+    uitvoering["einddatumtijd"] = uitvoering["begindatumtijd"]  + datetime.timedelta(minutes = duur)
+    uitvoering["zaalnummer"] = zaal["zaalnummer"]
+    # voorbereiden reserveringen en bezetting:
+    print(zaal["zaalnummer"])
+    #rangen
+    for rang in rangen:      
+        if rang["zaalnummer"] == zaal["zaalnummer"]:
+            stoelnr = rang["vanstoel"]
+            # reserveringen    
+            while stoelnr <= rang["totstoel"] - 8:
+                reservering = {}
+                reserveringsnr = reserveringsnr + 1
+                reservering["reserveringsnummer"] = reserveringsnr
+                reservering["klantnummer"] = random.choice(klanten)["klantnummer"]
+                reservering["voorstellingsnummer"] = uitvoering["voorstellingsnummer"]
+                reservering["uitvoeringsnummer"] = uitvoering["uitvoeringsnummer"]
+                reserveringen.append(reservering)
+                aantal_stoelen = random.randint(1,8) # 1 tot 8 stoeltjes per reservering        
+                # bezetting
+                for b in range(1, aantal_stoelen): 
+                    bezetting = {}
+                    bezetting["reserveringsnummer"] = reservering["reserveringsnummer"]
+                    bezetting["stoelnummer"] = stoelnr
+                    bezetting["voorstellingsnummer"] = reservering["voorstellingsnummer"]
+                    bezetting["uitvoeringsnummer"] = reservering["uitvoeringsnummer"]
+                    bezettingen.append(bezetting)  
+                    stoelnr = stoelnr + 1
+                stoelnr = stoelnr + random.randint(0, abs(populariteitsfactor-11)) # hier en daar wat lege stoeltjes 
+    return uitvoering
     
-    # maak schepen 
-    schepen = [] 
-    for schip in random.sample(bron_schepen, k = min(AANTAL_SCHEPEN, len(bron_schepen))):           
-        mydict = {}     
-        mydict["SCHEEPSNAAM"] = schip
-        bedrijf = random.choice(bedrijven) # koppel schip aan willekeurig bedrijf (ook aan moederbedrijven maar niet aan holdings)
-        while (bedrijf["EIGENAAR"] == None ): # holding?
-            bedrijf = random.choice(bedrijven)        
-        mydict["BEDRIJFSNAAM"] = bedrijf["BEDRIJFSNAAM"]
-        schepen.append(mydict)
+def dicts2list(listOfDicts, item):
+    list = []
+    for dict in listOfDicts:
+        list.append(dict[item])
+    return list
     
-    # genereer inserts basistabellen
-    print ("LAND: ", py2sql.list2sql2file('LAND', landen, file))    
-    print ("BEDRIJF: ", py2sql.list2sql2file('BEDRIJF', bedrijven, file))    
-    print ("SCHIP: ", py2sql.list2sql2file('SCHIP', schepen, file)) 
-    
-    # plaats random factoren
-    for land in landen:
-        land["factor"] = 1 + random.random()*2
-    for vissoort in vissoorten:
-        vissoort["factor"] = 1 + random.random()*3
-    for schip in schepen:
-        schip["factor"] = 1 + random.random()*5  
-        
-    # genereer inserts overige tabellen
-    genereer_vangsten(file, schepen, landen, vissoorten) 
-    genereer_vislicenties(file, schepen, landen, vissoorten)
-    genereer_scheepsvlaggen(file, schepen, landen)    
+def getConsonants(string):
+  return ''.join([each for each in string if each not in "aeiouAEIOU"])
+  
+def checkPeriodOverlap(begindate1, enddate1, begindate2, enddate2):
+    #print (begindate1, enddate1, begindate2, enddate2);
+    result = False
+    if date_in(begindate1, begindate2, enddate2):
+        result =  True
+    elif date_in(enddate1, begindate2, enddate2):
+        result =  True
+    elif date_in(begindate2, begindate1, enddate1):
+        result =  True
+    elif date_in(enddate2, begindate1, enddate1):
+        result =  True
+    elif enddate2 == None and enddate1 >= begindate2:
+        result =  True
+    elif enddate1 == None and begindate1 <= enddate2:
+        result =  True
+    #print(result)
+    return result
 
-    file.close()     
-    
-def genereer_vangsten(file, schepen, landen, vissoorten):
-    
-    vangsten = []
-
-    for schip in random.sample(schepen, k = random.randrange(len(schepen)-3,len(schepen)-1)):  # bijna alle schepen
-
-        for datum in random.sample(bron_datums, k = AANTAL_VISTOCHTEN): # een aantal vistochten 
-        
-            # minder vangst in winter en meer in zomer = maandfactor
-            maandfactor = datum.month-7
-            if maandfactor >= 0:
-                maandfactor += 1
-            maandfactor = abs(maandfactor)*5
-            jaarfactor = 1+(datum.year-2015)/10 # ieder jaar een beetje meer
- 
-            for land in random.sample(landen, k = random.randrange(3,6)): # een paar landen per vistocht
-            
-                for vis in random.sample(vissoorten, k = int(AANTAL_VISSOORTEN/10)): # 10% van de vissoorten
-                
-                    vangst = {}
-                 
-                    hoeveelheid = int(random.randrange(1,50)*schip["factor"]*jaarfactor*land["factor"]*vis["factor"]/maandfactor)
-                    vangst["SCHEEPSNAAM"] = schip["SCHEEPSNAAM"]
-                    vangst["LANDNAAM"] = land["LANDNAAM"]
-                    vangst["DATUM"] = datum.strftime('%Y-%m-%d')
-                    vangst["VISSOORT_GEVANGEN"] = vis["VISSOORTNAAM"]
-                    vangst["HOEVEELHEID"] = hoeveelheid
-                    
-                    vangsten.append(vangst)   
-                    
-              
-    print ("VANGST: ", py2sql.list2sql2file('VANGST', vangsten, file))       
-
-
-def genereer_vislicenties(file, schepen, landen, vissoorten):
-
-    vislicenties = []
-
-    for schip in random.sample(schepen, k = random.randrange(len(schepen)-3,len(schepen)-1)): # bijna alle schepen
-            
-            for land in random.sample(landen, k = int(AANTAL_LANDEN/2)): # de helft van de landen
-          
-                for vis in random.sample(vissoorten, k = int(AANTAL_VISSOORTEN/2)):  # de helft van de vissoorten                 
-          
-                    begindatum = datetime.date(2016, 1, 1) - datetime.timedelta(days=random.randrange(0,1000)) # een paar wisselingen
-                    einddatum = datetime.date(2016, 1, 1)
-                    
-                    while einddatum < datetime.date(2021, 12, 31):  
-
-                        einddatum = begindatum + datetime.timedelta(days=random.randrange(300,5000)) # hoe korter de periode, hoe meer wisselingen en records
-                        
-                        licentie = {}
-                    
-                        licentie["SCHEEPSNAAM"] = schip["SCHEEPSNAAM"]
-                        licentie["LANDNAAM"] = land["LANDNAAM"]
-                        licentie["L_VANAF"] = begindatum.strftime('%Y-%m-%d')                        
-                        licentie["VISSOORT_LICENTIE"] = vis["VISSOORTNAAM"]                         
-
-                        if einddatum >= datetime.date(2021, 12, 31): # data tot 2021-12-31
-                            licentie["L_TM"] = None
-                        else:
-                            licentie["L_TM"] = einddatum.strftime('%Y-%m-%d') # en anders een nieuwe periode starten de dag erna
-                            begindatum = einddatum + datetime.timedelta(days=1)
-                            
-                        licentie["QUOTUM"] = int(random.randrange(50,500)*schip["factor"]*land["factor"]*vis["factor"]) 
-                        
-                        vislicenties.append(licentie)
-                        
-    print ("VISLICENTIE", py2sql.list2sql2file('VISLICENTIE', vislicenties, file))    
-
-def genereer_scheepsvlaggen(file, schepen, landen):
-
-    scheepsvlaggen = []
-
-    for schip in schepen:
-
-        begindatum = datetime.date(2016, 1, 1) - datetime.timedelta(days=random.randrange(0,3000)) # een paar wisselingen
-        einddatum = datetime.date(2016, 1, 1)
-        
-        while einddatum < datetime.date(2021, 12, 31):  
-            land = random.choice(landen)
-            einddatum = begindatum + datetime.timedelta(days=random.randrange(300,5000))
-            
-            vlag = {}
-        
-            vlag["SCHEEPSNAAM"] = schip["SCHEEPSNAAM"]
-            vlag["LANDNAAM"] = land["LANDNAAM"]    
-            vlag["VLAG_VANAF"] = begindatum.strftime('%Y-%m-%d')       
-
-            if einddatum >= datetime.date(2021, 12, 31): # data tot 2021-12-31
-                vlag["VLAG_TM"] = None
-            else:
-                vlag["VLAG_TM"] = einddatum.strftime('%Y-%m-%d')  # en anders een nieuwe periode starten de dag erna
-                begindatum = einddatum + datetime.timedelta(days=1)
-            
-            scheepsvlaggen.append(vlag)
-
-    print ("SCHEEPSVLAG", py2sql.list2sql2file('SCHEEPSVLAG', scheepsvlaggen, file))      
+def date_in(thedate, begindate, enddate):
+    if thedate == None:
+        return False
+    elif begindate == None or thedate >= begindate: 
+        if enddate == None or thedate <= enddate:
+            return True
+        else:
+            return False
+    else:
+        return False
 
 def tupels2dicts(name, listOfTupels):
     list = []
